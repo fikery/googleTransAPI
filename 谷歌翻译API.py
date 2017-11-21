@@ -21,23 +21,13 @@ class Climbing():
         info = soup.find_all('script')
         for i in info:
             data = i.get_text()
-            if 'TKK' in data:
-                res = data.split('TKK')[1].split(');')[0]
-                res = 'TKK' + res + ');' + '\n' + 'console.log(TKK);'
-                with open('getTKK.js', 'w') as f:
-                    f.write(res)
-                os.system('node getTKK.js > TKK.txt')
-                with open('TKK.txt', 'r') as fi:
-                    tkk = fi.read().strip()
-                # print('tkk码: ', tkk)
-                self.getTK(q, tkk)
-
-                # 还不知道为什么下面这种写法会自动进行转义，导致js执行失败
-                # TTK = data.split('TKK=eval(')[1].split(');')[0]
-                # print(execjs.eval(TTK))
+            if 'TKK' in data:                
+                content=execjs.get().compile(data) # 编译JS代码
+                tkk=content.eval('TKK') # 获取变量
+                self.getTK(q,tkk)
 
     def getTK(self, q, tkk):
-        # os.environ["NODE_PATH"]=os.getcwd()+"/node_modules"#防止调用node是报错模块不存在
+        # os.environ["NODE_PATH"]=os.getcwd()+"/node_modules"#防止调用node时报错模块不存在
         gettranslation = execjs.compile(
             '''
             function b (a, b) {
