@@ -1,32 +1,36 @@
-# -*-coding:utf-8 -*-
 import requests
-import os
 import execjs
 import json
+import re
 from bs4 import BeautifulSoup
 
 
-class Climbing():
+class GgTransAPI:
     def __init__(self):
         self.headers = {
             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36'
         }
 
-    def getTrans(self, q):
-        if not q:
-            return
+    def getTrans(self, q, flg=0):
+        '''
+        如果flg为0默认返回拼音和翻译结果
+        如果flg为1默认返回拼音
+        否则返回翻译结果
+        '''
         url = 'http://translate.google.cn/'
-        html = requests.get(url, headers=self.headers)
+        html = requests.get(url)
         soup = BeautifulSoup(html.text, 'lxml')
         info = soup.find_all('script')
         for i in info:
             data = i.get_text()
-            if 'TKK' in data:                
-                content=execjs.get().compile(data) # 编译JS代码
-                tkk=content.eval('TKK') # 获取变量
-                self.getTK(q,tkk)
+            if 'TKK' in data:
+                content = execjs.get().compile(data)  # 编译js代码
+                tkk = content.eval('TKK')  # 获取变量
+                result = self.getTK(q, tkk, flg)
+                return result
+                # print(content.eval('TKK'))
 
-    def getTK(self, q, tkk):
+    def getTK(self, q, tkk, flg):
         # os.environ["NODE_PATH"]=os.getcwd()+"/node_modules"#防止调用node时报错模块不存在
         gettranslation = execjs.compile(
             '''
@@ -56,28 +60,34 @@ class Climbing():
             '''
         )
         tk = gettranslation.call('tk', q, tkk)
-        # print('tk码: ', tk)
-        self.getdata(tk, q)
+        # print('tk码: ',tk)
+        result = self.getdata(tk, q, flg)
+        return result
 
-    def getdata(self, tk, q):
-        '''sl:source language,tl:to language'''
+    def getdata(self, tk, q, flg):
         sl, tl = 'zh-CN', 'en'
-        if q[0] >= '\u4e00' and q[0] <= '\u9fa5':
-            pass
-        else:
+        if not re.match('[\u4e00-\u9fa5]', q[0]):
             sl, tl = tl, sl
         data_url = 'http://translate.google.cn/translate_a/single?client=t&sl=' + sl + '&tl=' + tl + '&hl=zh-CN&dt=at&dt=bd&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&dt=t&ie=UTF-8&oe=UTF-8&pc=1&otf=1&ssel=6&tsel=3&kc=0&tk=' + tk + '&q=' + q
+        result = {'msg': '', 'pinyin': '', 'trans': ''}
         try:
             html = requests.get(data_url, headers=self.headers)
             res = json.loads(html.text)[0]
             if sl is 'zh-CN':
-                pinyin = res[1][3]
+                pinyin = res[-1][3]
             else:
-                pinyin = res[1][2]
-            result = pinyin + '\t' + res[0][0]
-            print(result)
+                pinyin = res[-1][2]
+            trans = [x[0] for x in res if x[0]]
+            trans = ''.join(trans)
+            if flg == 0:
+                result.update({'msg': 'success', 'pinyin': pinyin, 'trans': trans})
+            elif flg == 1:
+                result.update({'msg': 'success', 'pinyin': pinyin, 'trans': ''})
+            else:
+                result.update({'msg': 'success', 'pinyin': '', 'trans': trans})
         except Exception as e:
-            print(e)
+            result = {'msg': str(e), 'pinyin': '', 'trans': ''}
+        return json.dumps(result, ensure_ascii=False)
 
     def beginTrans(self):
         try:
@@ -89,5 +99,8 @@ class Climbing():
             pass
 
 
-cli = Climbing()
-cli.beginTrans()
+ggtrans = GgTransAPI()
+
+if __name__ == '__main__':
+    # ggtrans.beginTrans()
+    print(ggtrans.getTrans("apple and book"))
