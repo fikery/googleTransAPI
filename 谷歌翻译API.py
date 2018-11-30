@@ -26,6 +26,7 @@ class GgTransAPI:
             if 'TKK' in data:
                 content = execjs.get().compile(data)  # 编译js代码
                 tkk = content.eval('TKK')  # 获取变量
+                # tkk = re.search(",tkk:'(.*?)'", content._source).group(1)  # 如果上面代码报错，改为执行这一句
                 result = self.getTK(q, tkk, flg)
                 return result
                 # print(content.eval('TKK'))
